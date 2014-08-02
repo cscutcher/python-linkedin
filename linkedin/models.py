@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from future.builtins import str
+from future.builtins import object
 import collections
 
 AccessToken = collections.namedtuple('AccessToken', ['access_token', 'expires_in'])

@@ -34,6 +34,5 @@ setup(name='python-linkedin',
       url='http://ozgur.github.com/python-linkedin/',
       license='MIT',
       packages=['linkedin'],
-      install_requires=['requests>=1.1.0', 'requests-oauthlib>=0.3'],
-      zip_safe=False
-)
+      install_requires=['requests>=1.1.0', 'requests-oauthlib>=0.3', 'future>=0.12.4'],
+      zip_safe=False)

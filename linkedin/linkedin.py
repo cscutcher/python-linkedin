@@ -1,15 +1,23 @@
 # -*- coding: utf-8 -*-
+from future.builtins import str
+from future.builtins import map
+from future import standard_library
+standard_library.install_hooks()
+from future.builtins import object
 import contextlib
 import hashlib
 import random
-import urllib
+import urllib.request
+import urllib.parse
+import urllib.error
+from io import StringIO
 
 import requests
 from requests_oauthlib import OAuth1
 
 from .exceptions import LinkedInError
 from .models import AccessToken, LinkedInInvitation, LinkedInMessage
-from .utils import enum, to_utf8, raise_for_error, json, StringIO
+from .utils import enum, raise_for_error, json
 
 
 __all__ = ['LinkedInAuthentication', 'LinkedInApplication', 'PERMISSIONS']
@@ -94,7 +102,7 @@ class LinkedInAuthentication(object):
               'redirect_uri': self.redirect_uri}
         # urlencode uses quote_plus when encoding the query string so,
         # we ought to be encoding the qs by on our own.
-        qsl = ['%s=%s' % (urllib.quote(k), urllib.quote(v)) for k, v in qd.items()]
+        qsl = ['%s=%s' % (urllib.parse.quote(k), urllib.parse.quote(v)) for k, v in qd.items()]
         return '%s?%s' % (self.AUTHORIZATION_URL, '&'.join(qsl))
 
     @property
@@ -123,13 +131,13 @@ class LinkedInSelector(object):
     @classmethod
     def parse(cls, selector):
         with contextlib.closing(StringIO()) as result:
-            if type(selector) == dict:
+            if isinstance(selector, dict):
                 for k, v in selector.items():
-                    result.write('%s:(%s)' % (to_utf8(k), cls.parse(v)))
-            elif type(selector) in (list, tuple):
+                    result.write('%s:(%s)' % (str(k), cls.parse(v)))
+            elif isinstance(selector, (list, tuple)):
                 result.write(','.join(map(cls.parse, selector)))
             else:
-                result.write(to_utf8(selector))
+                result.write(str(selector))
             return result.getvalue()
 
 
@@ -137,7 +145,8 @@ class LinkedInApplication(object):
     BASE_URL = 'https://api.linkedin.com'
 
     def __init__(self, authentication=None, token=None):
-        assert authentication or token, 'Either authentication instance or access token is required'
+        assert authentication or token, (
+            'Either authentication instance or access token is required')
         self.authentication = authentication
         if not self.authentication:
             self.authentication = LinkedInAuthentication('', '', '')
@@ -145,6 +154,7 @@ class LinkedInApplication(object):
 
     def make_request(self, method, url, data=None, params=None, headers=None,
                      timeout=60):
+        print(url)
         if headers is None:
             headers = {'x-li-format': 'json', 'Content-Type': 'application/json'}
         else:
@@ -170,7 +180,7 @@ class LinkedInApplication(object):
         if member_id:
             url = '%s/id=%s' % (ENDPOINTS.PEOPLE, str(member_id))
         elif member_url:
-            url = '%s/url=%s' % (ENDPOINTS.PEOPLE, urllib.quote_plus(member_url))
+            url = '%s/url=%s' % (ENDPOINTS.PEOPLE, urllib.parse.quote_plus(member_url))
         else:
             url = '%s/~' % ENDPOINTS.PEOPLE
         if selectors:
@@ -196,7 +206,7 @@ class LinkedInApplication(object):
                 url = '%s/id=%s/picture-urls::(original)' % (ENDPOINTS.PEOPLE, str(member_id))
         elif member_url:
             url = '%s/url=%s/picture-urls::(original)' % (ENDPOINTS.PEOPLE,
-                                                          urllib.quote_plus(member_url))
+                                                          urllib.parse.quote_plus(member_url))
         else:
             url = '%s/~/picture-urls::(original)' % ENDPOINTS.PEOPLE
 
@@ -210,7 +220,7 @@ class LinkedInApplication(object):
             url = '%s/id=%s/connections' % (ENDPOINTS.PEOPLE, str(member_id))
         elif member_url:
             url = '%s/url=%s/connections' % (ENDPOINTS.PEOPLE,
-                                             urllib.quote_plus(member_url))
+                                             urllib.parse.quote_plus(member_url))
         else:
             url = '%s/~/connections' % ENDPOINTS.PEOPLE
         if selectors:
@@ -226,7 +236,7 @@ class LinkedInApplication(object):
             url = '%s/id=%s/group-memberships' % (ENDPOINTS.PEOPLE, str(member_id))
         elif member_url:
             url = '%s/url=%s/group-memberships' % (ENDPOINTS.PEOPLE,
-                                                   urllib.quote_plus(member_url))
+                                                   urllib.parse.quote_plus(member_url))
         else:
             url = '%s/~/group-memberships' % ENDPOINTS.PEOPLE
 
@@ -292,7 +302,7 @@ class LinkedInApplication(object):
         url = '%s/%s/relation-to-viewer/is-liked' % (ENDPOINTS.POSTS, str(post_id))
         try:
             self.make_request('PUT', url, data=json.dumps(action))
-        except (requests.ConnectionError, requests.HTTPError), error:
+        except (requests.ConnectionError, requests.HTTPError) as error:
             raise LinkedInError(error.message)
         else:
             return True
@@ -304,7 +314,7 @@ class LinkedInApplication(object):
         url = '%s/%s/comments' % (ENDPOINTS.POSTS, str(post_id))
         try:
             self.make_request('POST', url, data=json.dumps(post))
-        except (requests.ConnectionError, requests.HTTPError), error:
+        except (requests.ConnectionError, requests.HTTPError) as error:
             raise LinkedInError(error.message)
         else:
             return True
@@ -321,7 +331,7 @@ class LinkedInApplication(object):
         identifiers = []
         url = ENDPOINTS.COMPANIES
         if company_ids:
-            identifiers += map(str, company_ids)
+            identifiers.extend(map(str, company_ids))
 
         if universal_names:
             identifiers += ['universal-name=%s' % un for un in universal_names]
