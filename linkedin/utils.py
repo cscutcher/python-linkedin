@@ -39,23 +39,24 @@ def enum(enum_type='enum', base_classes=None, methods=None, **attrs):
 def raise_for_error(response):
     try:
         response.raise_for_status()
-    except (requests.HTTPError, requests.ConnectionError) as error:
+    except requests.HTTPError as error:
         try:
-            if len(response.content) == 0:
-                # There is nothing we can do here since LinkedIn has neither sent
-                # us a 2xx response nor a response content.
-                return
-            response = response.json()
-            if ('error' in response) or ('errorCode' in response):
-                message = '%s: %s' % (response.get('error', error.message),
-                                      response.get('error_description', 'Unknown Error'))
-                error_code = response.get('status')
-                ex = get_exception_for_error_code(error_code)
-                raise ex(message)
-            else:
-                raise LinkedInError(error.message)
-        except (ValueError, TypeError):
-            raise LinkedInError(error.message)
+            error_info = response.json()
+        except:
+            error_info = {
+                'status': response.status_code,
+                'timestamp': 0,
+                'errorCode': -1,
+                'message': 'Unable to decode LinkedIn error response'}
+
+        exception_type = get_exception_for_error_code(error_info['status'])
+        message = '[%s:%s] %s' % (
+            error_info['status'],
+            error_info['errorCode'],
+            error_info['message'])
+        raise exception_type(message)
+    except requests.ConnectionError as error:
+        raise LinkedInError(repr(error))
 
 HTTP_METHODS = enum('HTTPMethod', GET='GET', POST='POST',
                     PUT='PUT', DELETE='DELETE', PATCH='PATCH')
